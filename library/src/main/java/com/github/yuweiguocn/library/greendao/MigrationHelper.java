@@ -32,18 +32,25 @@ public final class MigrationHelper {
 
     public static void migrate(SQLiteDatabase db, Class<? extends AbstractDao<?, ?>>... daoClasses) {
         Database database = new StandardDatabase(db);
+        try {
+            database.beginTransaction();
 
-        printLog("【The Old Database Version】" + db.getVersion());
-        printLog("【Generate temp table】start");
-        generateTempTables(database, daoClasses);
-        printLog("【Generate temp table】complete");
+            printLog("【The Old Database Version】" + db.getVersion());
+            printLog("【Generate temp table】start");
+            generateTempTables(database, daoClasses);
+            printLog("【Generate temp table】complete");
 
-        dropAllTables(database, true, daoClasses);
-        createAllTables(database, false, daoClasses);
+            dropAllTables(database, true, daoClasses);
+            createAllTables(database, false, daoClasses);
 
-        printLog("【Restore data】start");
-        restoreData(database, daoClasses);
-        printLog("【Restore data】complete");
+            printLog("【Restore data】start");
+            restoreData(database, daoClasses);
+            printLog("【Restore data】complete");
+
+            database.setTransactionSuccessful();
+        } finally {
+            database.endTransaction();
+        }
     }
 
     private static void generateTempTables(Database db, Class<? extends AbstractDao<?, ?>>... daoClasses) {
@@ -70,6 +77,7 @@ public final class MigrationHelper {
                 printLog("【Generate temp table】" + tempTableName);
             } catch (SQLException e) {
                 Log.e(TAG, "【Failed to generate temp table】" + tempTableName, e);
+                throw e;
             }
         }
     }
@@ -183,6 +191,7 @@ public final class MigrationHelper {
                 printLog("【Drop temp table】" + tempTableName);
             } catch (SQLException e) {
                 Log.e(TAG, "【Failed to restore data from temp table 】" + tempTableName, e);
+                throw e;
             }
         }
     }
